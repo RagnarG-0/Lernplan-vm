@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>via medici Lernplan · 2. ÄP</title>
+<meta name="description" content="Interaktive Lernplan-Visualisierung für das 2. Staatsexamen – Lesezeiten, Prüfungsrelevanz und Kreuzfragen auf einen Blick.">
+<meta property="og:title" content="via medici Lernplan · 2. ÄP">
+<meta property="og:description" content="Interaktive Lernplan-Visualisierung für das 2. Staatsexamen.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0a0d14">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0d14;
+  --surface: #0f1320;
+  --border: #1a2235;
+  --text: #d8dde8;
+  --muted: #3d4f68;
+  --accent: #e2e8f0;
+  --font-mono: 'DM Mono', monospace;
+  --font-head: 'Syne', sans-serif;
+}
+
+html, body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-head);
+  overflow-x: hidden;
+}
+
+/* Subtle grid background */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wrap {
+  position: relative; z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 80px 32px 60px;
+}
+
+/* Header */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .18em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  animation: fadeUp .5s ease both;
+}
+
+h1 {
+  font-size: clamp(32px, 6vw, 56px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -.03em;
+  color: var(--accent);
+  margin-bottom: 16px;
+  animation: fadeUp .5s .08s ease both;
+}
+h1 span {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.subtitle {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 64px;
+  animation: fadeUp .5s .14s ease both;
+}
+
+/* Cards grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  animation: fadeUp .5s .2s ease both;
+}
+
+.card {
+  position: relative;
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px 28px 24px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .2s;
+  border-radius: inherit;
+}
+.card:not(.disabled):hover {
+  border-color: #2a3d5a;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.card:not(.disabled):hover::before { opacity: 1; }
+
+/* Color accent strip per card */
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 8px 8px 0 0;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.card:not(.disabled):hover::after { opacity: 1; }
+
+.card.h25::before { background: linear-gradient(135deg, rgba(56,189,248,.04), transparent); }
+.card.h25::after  { background: linear-gradient(90deg, #38bdf8, #6366f1); }
+
+.card.f26::before { background: linear-gradient(135deg, rgba(236,72,153,.04), transparent); }
+.card.f26::after  { background: linear-gradient(90deg, #ec4899, #f97316); }
+
+.card.h26::before { background: linear-gradient(135deg, rgba(100,116,139,.04), transparent); }
+.card.h26::after  { background: linear-gradient(90deg, #475569, #64748b); }
+
+.card.disabled {
+  opacity: .38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Mini bar chart decoration */
+.mini-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 28px;
+  margin-bottom: 20px;
+}
+.mini-bar {
+  width: 4px;
+  border-radius: 2px 2px 0 0;
+  opacity: .7;
+}
+
+.card-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.card-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  margin-bottom: 6px;
+  line-height: 1.1;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  margin-top: 16px;
+}
+.badge.soon {
+  background: rgba(71,85,105,.2);
+  color: #475569;
+  border: 1px solid rgba(71,85,105,.2);
+}
+.badge.live {
+  background: rgba(34,197,94,.08);
+  color: #4ade80;
+  border: 1px solid rgba(34,197,94,.15);
+}
+.badge-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge.live .badge-dot {
+  animation: pulse 2s infinite;
+}
+
+.arrow {
+  position: absolute;
+  bottom: 24px; right: 24px;
+  font-size: 18px;
+  color: var(--muted);
+  transition: transform .2s, color .2s;
+}
+.card:not(.disabled):hover .arrow {
+  transform: translate(2px, -2px);
+  color: var(--text);
+}
+
+/* Footer */
+footer {
+  margin-top: 80px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  animation: fadeUp .5s .28s ease both;
+}
+.footer-copy {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+.footer-disc {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: #1e2d40;
+  max-width: 420px;
+  text-align: right;
+  line-height: 1.6;
+}
+.footer-disc a { color: #253a52; text-decoration: none; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .3; }
+}
+
+@media (max-width: 600px) {
+  .wrap { padding: 48px 20px 40px; }
+  h1 { font-size: 36px; }
+  .footer-disc { text-align: left; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">via medici · Lernplan-Visualisierung</div>
+  <h1>2. Staatsexamen <span>/ ÄP</span></h1>
+  <p class="subtitle">
+    Interaktive Übersicht über Lesezeiten, Prüfungsrelevanz und Kreuzfragen
+    des via medici 100-Tage-Lernplans.
+  </p>
+
+  <div class="grid">
+
+    <!-- H25 -->
+    <a class="card h25" href="viamedici_lernplan_H25.html">
+      <div class="mini-chart" id="chart-h25"></div>
+      <div class="card-tag">Herbst 2025</div>
+      <div class="card-title">H25</div>
+      <div class="badge live"><span class="badge-dot"></span>Verfügbar</div>
+      <span class="arrow">↗</span>
+    </a>
+
+    <!-- F26 -->
+    <a class="card f26" href="viamedici_lernplan_F26.html">
+      <div class="mini-chart" id="chart-f26"></div>
+      <div class="card-tag">Frühjahr 2026</div>
+      <div class="card-title">F26</div>
+      <div class="badge live"><span class="badge-dot"></span>Verfügbar</div>
+      <span class="arrow">↗</span>
+    </a>
+
+    <!-- H26 (coming soon) -->
+    <div class="card h26 disabled">
+      <div class="mini-chart" id="chart-h26"></div>
+      <div class="card-tag">Herbst 2026</div>
+      <div class="card-title">H26</div>
+      <div class="badge soon"><span class="badge-dot"></span>Noch nicht verfügbar</div>
+    </div>
+
+  </div>
+
+  <footer>
+    <span class="footer-copy">© 2026 Ragnar · Halle (Saale)</span>
+    <span class="footer-disc">
+      Inhalte sind Eigentum des <a href="https://viamedici.thieme.de" target="_blank">Georg Thieme Verlags KG</a>.
+      Keine Verbindung zu Thieme. Kostenlose, nicht-kommerzielle Lernhilfe.
+    </span>
+  </footer>
+
+</div>
+
+<script>
+// Draw decorative mini bar charts on each card
+function miniChart(id, color, seed) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const heights = Array.from({length: 18}, (_, i) => {
+    const v = Math.sin(i * seed + seed) * 0.5 + 0.5;
+    return Math.round(8 + v * 20);
+  });
+  heights.forEach(h => {
+    const bar = document.createElement('div');
+    bar.className = 'mini-bar';
+    bar.style.height = h + 'px';
+    bar.style.background = color;
+    el.appendChild(bar);
+  });
+}
+
+miniChart('chart-h25', '#38bdf8', 1.7);
+miniChart('chart-f26', '#ec4899', 2.3);
+miniChart('chart-h26', '#475569', 3.1);
+</script>
+</body>
+</html>
