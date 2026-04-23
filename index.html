@@ -143,11 +143,6 @@ h1 span {
 .card.h26::before { background: linear-gradient(135deg, rgba(100,116,139,.04), transparent); }
 .card.h26::after  { background: linear-gradient(90deg, #475569, #64748b); }
 
-.card.disabled {
-  opacity: .38;
-  cursor: not-allowed;
-  pointer-events: none;
-}
 
 /* Mini bar chart decoration */
 .mini-chart {
@@ -191,11 +186,6 @@ h1 span {
   padding: 3px 8px;
   border-radius: 3px;
   margin-top: 16px;
-}
-.badge.soon {
-  background: rgba(71,85,105,.2);
-  color: #475569;
-  border: 1px solid rgba(71,85,105,.2);
 }
 .badge.live {
   background: rgba(34,197,94,.08);
@@ -296,13 +286,14 @@ footer {
       <span class="arrow">↗</span>
     </a>
 
-    <!-- H26 (coming soon) -->
-    <div class="card h26 disabled">
+    <!-- H26 -->
+    <a class="card h26" href="viamedici_lernplan_H26.html">
       <div class="mini-chart" id="chart-h26"></div>
       <div class="card-tag">Herbst 2026</div>
       <div class="card-title">H26</div>
-      <div class="badge soon"><span class="badge-dot"></span>Noch nicht verfügbar</div>
-    </div>
+      <div class="badge live"><span class="badge-dot"></span>Verfügbar</div>
+      <span class="arrow">↗</span>
+    </a>
 
   </div>
 
