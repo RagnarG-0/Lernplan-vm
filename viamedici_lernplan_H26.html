@@ -218,8 +218,12 @@ self.addEventListener('fetch', e => {
 <header>
   <div class="logo">via medici <span>·</span> 2. ÄP H26</div>
   <div class="mode-toggle">
-<button class="mode-btn active" id="btn-standard" onclick="setMode('standard')">standard</button>
+    <button class="mode-btn active" id="btn-standard" onclick="setMode('standard')">standard</button>
     <button class="mode-btn" id="btn-vertieft" onclick="setMode('vertieft')">vertieft</button>
+  </div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-sort-relevanz" onclick="setSort('relevanz')">↓ Relevanz</button>
+    <button class="mode-btn" id="btn-sort-original" onclick="setSort('original')">Original</button>
   </div>
   <div class="legend">
     <div class="legend-item"><div class="legend-dot" style="background:#4a7fb5"></div>Lesezeit</div>
@@ -276,10 +280,10 @@ let doneSet = new Set(JSON.parse(localStorage.getItem('vm_h26_done') || '[]'));
 let doneSegs = new Set(JSON.parse(localStorage.getItem('vm_h26_donesegs') || '[]'));
 let doneQs = new Set(JSON.parse(localStorage.getItem('vm_h26_doneqs') || '[]'));
 
-function segKey(dayIdx, modIdx) { return dayIdx + ':' + modIdx; }
+function segKey(dayIdx, modNr) { return dayIdx + ':' + modNr; }
 
-function isSegDone(dayIdx, modIdx) {
-  return doneSet.has(LERNPLAN_DATA[dayIdx].tag) || doneSegs.has(segKey(dayIdx, modIdx));
+function isSegDone(dayIdx, modNr) {
+  return doneSet.has(LERNPLAN_DATA[dayIdx].tag) || doneSegs.has(segKey(dayIdx, modNr));
 }
 
 function saveDone() {
@@ -308,6 +312,23 @@ function setMode(mode) {
   });
   draw();
   updateStats();
+}
+
+// ── Sort mode ──
+let currentSort = 'relevanz';
+
+function setSort(sort) {
+  currentSort = sort;
+  ['relevanz','original'].forEach(s => {
+    document.getElementById('btn-sort-' + s).classList.toggle('active', s === sort);
+  });
+  draw();
+}
+
+function getSortedModules(day) {
+  if (currentSort === 'original') return [...day.modules];
+  // relevanz: sort descending (high relevance at bottom = drawn first upward)
+  return [...day.modules].sort((a, b) => b.relevance - a.relevance);
 }
 
 // ── Canvas ──
@@ -372,15 +393,15 @@ function draw(hoveredSeg = null) {
 
       // Sort modules: relevance descending first (high rel = bottom = drawn last upward)
       // We draw from TOP_H upward; first module drawn = bottommost visually
-      const sorted = [...day.modules].sort((a, b) => b.relevance - a.relevance);
+      const sorted = getSortedModules(day);
 
       let yOffset = TOP_H;
       sorted.forEach((mod, mi) => {
         const segH = Math.max(2, Math.round((getMinutes(mod) / dayMins) * totalH));
         const y = yOffset - segH;
-        const isHov = hoveredSeg && hoveredSeg.dayIdx === i && hoveredSeg.modIdx === mi;
+        const isHov = hoveredSeg && hoveredSeg.dayIdx === i && hoveredSeg.modNr === mod.nr;
 
-        const segDone = isSegDone(i, mi);
+        const segDone = isSegDone(i, mod.nr);
         let alpha;
         if (segDone) {
           ctx.fillStyle = 'rgba(70,70,70,0.12)';
@@ -399,7 +420,7 @@ function draw(hoveredSeg = null) {
           ctx.fillRect(x, yOffset - 1, COL_W, 1);
         }
 
-        hitMap.push({ x1: x, y1: y, x2: x + COL_W, y2: yOffset, type: 'seg', dayIdx: i, modIdx: mi, mod });
+        hitMap.push({ x1: x, y1: y, x2: x + COL_W, y2: yOffset, type: 'seg', dayIdx: i, modNr: mod.nr, mod });
         yOffset = y;
       });
     }
@@ -464,7 +485,7 @@ canvas.addEventListener('mousemove', e => {
   const hit = getHit(cx, cy);
   if (hit && hit.type === 'seg') {
     canvas.style.cursor = 'pointer';
-    if (!currentHover || currentHover.dayIdx !== hit.dayIdx || currentHover.modIdx !== hit.modIdx) {
+    if (!currentHover || currentHover.dayIdx !== hit.dayIdx || currentHover.modNr !== hit.modNr) {
       currentHover = hit; draw(hit); showTooltip(e, hit.mod);
     } else posTooltip(e);
   } else if (hit && hit.type === 'axis') {
@@ -500,15 +521,15 @@ canvas.addEventListener('contextmenu', e => {
   }
 
   if (hit.type !== 'seg') return;
-  const { dayIdx, modIdx } = hit;
-  const key = segKey(dayIdx, modIdx);
+  const { dayIdx, modNr } = hit;
+  const key = segKey(dayIdx, modNr);
   // If whole day is done via doneSet, expand to individual segs first then toggle this one
   const tag = LERNPLAN_DATA[dayIdx].tag;
   if (doneSet.has(tag)) {
     // Expand: mark all segs done individually except this one
     doneSet.delete(tag);
     LERNPLAN_DATA[dayIdx].modules.forEach((_, mi) => {
-      if (mi !== modIdx) doneSegs.add(segKey(dayIdx, mi));
+      LERNPLAN_DATA[dayIdx].modules.forEach(m => { if (m.nr !== modNr) doneSegs.add(segKey(dayIdx, m.nr)); });
     });
     // This seg becomes NOT done (un-greying it from a fully-done day)
   } else {
@@ -530,18 +551,17 @@ canvas.addEventListener('click', e => {
     const di = hit.dayIdx;
     const numMods = LERNPLAN_DATA[di].modules.length;
     // Check if entire day is already done (via doneSet OR all segs individually done)
-    const allSegsDone = numMods > 0 && LERNPLAN_DATA[di].modules.every((_, mi) => doneSegs.has(segKey(di, mi)));
+    const allSegsDone = numMods > 0 && LERNPLAN_DATA[di].modules.every(m => doneSegs.has(segKey(di, m.nr)));
     const fullyDone = doneSet.has(tag) || allSegsDone;
     // Note: doneQs is intentionally not part of fullyDone — q-bar is independent
     if (fullyDone) {
       // Reset everything for this day
       doneSet.delete(tag);
-      LERNPLAN_DATA[di].modules.forEach((_, mi) => doneSegs.delete(segKey(di, mi)));
+      LERNPLAN_DATA[di].modules.forEach(m => doneSegs.delete(segKey(di, m.nr)));
       doneQs.delete(tag);
     } else {
-      // Mark entire day done, clear individual seg/q marks
       doneSet.add(tag);
-      LERNPLAN_DATA[di].modules.forEach((_, mi) => doneSegs.delete(segKey(di, mi)));
+      LERNPLAN_DATA[di].modules.forEach(m => doneSegs.delete(segKey(di, m.nr)));
       doneQs.delete(tag);
     }
     saveDone(); updateStats(); draw();
@@ -692,12 +712,12 @@ if (IS_TOUCH) {
       if (!hit) return;
 
       if (hit.type === 'seg') {
-        const key = segKey(hit.dayIdx, hit.modIdx);
+        const key = segKey(hit.dayIdx, hit.modNr);
         const tag = LERNPLAN_DATA[hit.dayIdx].tag;
         if (doneSet.has(tag)) {
           doneSet.delete(tag);
           LERNPLAN_DATA[hit.dayIdx].modules.forEach((_, mi) => {
-            if (mi !== hit.modIdx) doneSegs.add(segKey(hit.dayIdx, mi));
+            LERNPLAN_DATA[hit.dayIdx].modules.forEach(m => { if (m.nr !== hit.modNr) doneSegs.add(segKey(hit.dayIdx, m.nr)); });
           });
         } else {
           if (doneSegs.has(key)) doneSegs.delete(key); else doneSegs.add(key);
@@ -709,7 +729,7 @@ if (IS_TOUCH) {
         const tag = LERNPLAN_DATA[hit.dayIdx].tag;
         if (doneSet.has(tag)) {
           doneSet.delete(tag);
-          LERNPLAN_DATA[hit.dayIdx].modules.forEach((_, mi) => doneSegs.add(segKey(hit.dayIdx, mi)));
+          LERNPLAN_DATA[hit.dayIdx].modules.forEach(m => doneSegs.add(segKey(hit.dayIdx, m.nr)));
         } else {
           if (doneQs.has(tag)) doneQs.delete(tag); else doneQs.add(tag);
         }
