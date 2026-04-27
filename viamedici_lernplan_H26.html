@@ -224,6 +224,7 @@ self.addEventListener('fetch', e => {
   <div class="mode-toggle">
     <button class="mode-btn active" id="btn-sort-relevanz" onclick="setSort('relevanz')">↓ Relevanz</button>
     <button class="mode-btn" id="btn-sort-original" onclick="setSort('original')">Original</button>
+    <button class="mode-btn" id="btn-sort-status" onclick="setSort('status')">✓ Status</button>
   </div>
   <div class="legend">
     <div class="legend-item"><div class="legend-dot" style="background:#4a7fb5"></div>Lesezeit</div>
@@ -319,14 +320,24 @@ let currentSort = 'relevanz';
 
 function setSort(sort) {
   currentSort = sort;
-  ['relevanz','original'].forEach(s => {
+  ['relevanz','original','status'].forEach(s => {
     document.getElementById('btn-sort-' + s).classList.toggle('active', s === sort);
   });
   draw();
 }
 
-function getSortedModules(day) {
+function getSortedModules(day, dayIdx) {
   if (currentSort === 'original') return [...day.modules];
+  if (currentSort === 'status') {
+    // Done modules bottom (drawn first = visually lowest), open modules top
+    // Secondary sort: original order (by nr)
+    return [...day.modules].sort((a, b) => {
+      const aDone = isSegDone(dayIdx, a.nr) ? 1 : 0;
+      const bDone = isSegDone(dayIdx, b.nr) ? 1 : 0;
+      if (aDone !== bDone) return bDone - aDone; // done first in array = drawn first = bottom
+      return a.nr - b.nr; // secondary: original order
+    });
+  }
   // relevanz: sort descending (high relevance at bottom = drawn first upward)
   return [...day.modules].sort((a, b) => b.relevance - a.relevance);
 }
@@ -393,7 +404,7 @@ function draw(hoveredSeg = null) {
 
       // Sort modules: relevance descending first (high rel = bottom = drawn last upward)
       // We draw from TOP_H upward; first module drawn = bottommost visually
-      const sorted = getSortedModules(day);
+      const sorted = getSortedModules(day, i);
 
       let yOffset = TOP_H;
       sorted.forEach((mod, mi) => {
